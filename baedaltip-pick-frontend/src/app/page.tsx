@@ -3,26 +3,20 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { parseAndSaveExcel, ProgressCallback } from "@/lib/excelParser";
+import Link from "next/link";
 
 export default function Home() {
   const [uploading, setUploading] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [analysisResult, setAnalysisResult] = useState<any>(null);
   const [progress, setProgress] = useState({ current: 0, total: 0, currentSheet: "" });
+  
+  // 주차 정보 상태
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [selectedWeek, setSelectedWeek] = useState(1);
 
-  useEffect(() => {
-    const signIn = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        const { error } = await supabase.auth.signInAnonymously();
-        if (error) console.error("익명 로그인 에러:", error);
-        else console.log("새로운 익명 세션 생성 성공!");
-      } else {
-        console.log("기존 세션 로드 성공:", session);
-      }
-    };
-    signIn();
-  }, []);
+  // 익명 로그인 코드 제거 (로컬 환경에서 비활성화됨)
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files.length > 0) {
@@ -51,7 +45,12 @@ export default function Home() {
       };
 
       // 프론트엔드에서 직접 파싱 및 저장
-      const result = await parseAndSaveExcel(file, onProgress);
+      const weekInfo = {
+        year: selectedYear,
+        month: selectedMonth,
+        week: selectedWeek
+      };
+      const result = await parseAndSaveExcel(file, weekInfo, onProgress);
 
       console.log("Processing result:", result);
       setAnalysisResult({
@@ -79,9 +78,27 @@ export default function Home() {
     <main className="flex min-h-screen flex-col items-center justify-center bg-gray-50 p-4">
       <div className="w-full max-w-4xl space-y-6">
         <div className="bg-white rounded-xl shadow-md p-8">
-          <h1 className="text-2xl font-bold text-center text-gray-800 mb-6">
-            배달팁픽 정산 파일 업로드
-          </h1>
+          <div className="flex justify-between items-center mb-6">
+            <div className="flex-1">
+              <h1 className="text-2xl font-bold text-center text-gray-800">
+                배달팁픽 정산 파일 업로드
+              </h1>
+            </div>
+            <div className="flex space-x-3">
+              <Link 
+                href="/admin"
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+              >
+                📊 관리자 대시보드
+              </Link>
+              <Link 
+                href="/rider"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+              >
+                👤 라이더 조회
+              </Link>
+            </div>
+          </div>
           
           <div className="flex items-center justify-center w-full mb-4">
             <label htmlFor="file-upload" className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
@@ -99,6 +116,74 @@ export default function Home() {
               선택된 파일: <span className="font-medium">{file.name}</span>
             </div>
           )}
+
+          {/* 주차 정보 입력 */}
+          <div className="bg-gray-50 rounded-lg p-4 mb-4">
+            <h3 className="text-sm font-medium text-gray-700 mb-3">📅 정산 주차 정보</h3>
+            <div className="grid grid-cols-3 gap-4">
+              {/* 연도 선택 */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">연도</label>
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  {Array.from({ length: 5 }, (_, i) => {
+                    const year = new Date().getFullYear() - 2 + i;
+                    return (
+                      <option key={year} value={year}>
+                        {year}년
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              {/* 월 선택 */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">월</label>
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  {Array.from({ length: 12 }, (_, i) => (
+                    <option key={i + 1} value={i + 1}>
+                      {i + 1}월
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* 주차 선택 */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">주차</label>
+                <select
+                  value={selectedWeek}
+                  onChange={(e) => setSelectedWeek(parseInt(e.target.value))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  {Array.from({ length: 5 }, (_, i) => (
+                    <option key={i + 1} value={i + 1}>
+                      {i + 1}주차
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            
+            <div className="mt-3 text-center">
+              <span className="text-sm text-gray-600">
+                선택된 주차: <span className="font-medium text-blue-600">
+                  {selectedYear}년 {selectedMonth}월 {selectedWeek}주차
+                </span>
+              </span>
+              <p className="text-xs text-gray-500 mt-1">
+                * 수요일~화요일 기준 주차입니다
+              </p>
+            </div>
+          </div>
           
           {/* 진행률 표시 */}
           {uploading && progress.total > 0 && (
@@ -151,6 +236,14 @@ export default function Home() {
                       </div>
                       <p className="text-green-700">총 <strong>{analysisResult.totalSavedRows}개</strong>의 데이터가 저장되었습니다.</p>
                       <p className="text-sm text-green-600 mt-2">{analysisResult.message}</p>
+                      <div className="mt-4">
+                        <Link
+                          href="/admin"
+                          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
+                        >
+                          📊 관리자 대시보드에서 확인하기
+                        </Link>
+                      </div>
                     </div>
                   ) : (
                     <div className="bg-red-50 border border-red-200 rounded-lg p-4">

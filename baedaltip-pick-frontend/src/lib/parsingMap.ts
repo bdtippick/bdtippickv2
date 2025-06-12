@@ -8,7 +8,7 @@ export const parsingMap: { [key: string]: any } = {
     identifier: { db_key: "rider_id", excel_col: "C" },
     dataColumns: [
       { db_key: "total_orders", excel_col: "F" },
-      { db_key: "settlement_amount", excel_col: "D" },
+      { db_key: "settlement_amount", excel_col: "Z" },
       { db_key: "total_support_fund", excel_col: "AA" },
       { db_key: "deduction_details", excel_col: "AB" },
       { db_key: "total_settlement_amount", excel_col: "AC" },
@@ -28,6 +28,7 @@ export const parsingMap: { [key: string]: any } = {
     dataStartRow: 7,
     identifier: { db_key: "rider_id", excel_col: "C" },
     dataColumns: [
+      { db_key: "date", excel_col: "A" },
       { db_key: "rider_name", excel_col: "C" },
       { db_key: "store_name", excel_col: "D" },
       { db_key: "amount", excel_col: "L" }
@@ -39,6 +40,7 @@ export const parsingMap: { [key: string]: any } = {
     dataStartRow: 6,
     identifier: { db_key: "rider_id", excel_col: "C" },
     dataColumns: [
+      { db_key: "date", excel_col: "A" },
       { db_key: "rider_name", excel_col: "C" },
       { db_key: "type", excel_col: "D" },
       { db_key: "amount", excel_col: "E" }
@@ -50,6 +52,7 @@ export const parsingMap: { [key: string]: any } = {
     dataStartRow: 6,
     identifier: { db_key: "rider_id", excel_col: "D" },
     dataColumns: [
+      { db_key: "date", excel_col: "B" },
       { db_key: "rider_name", excel_col: "D" },
       { db_key: "type", excel_col: "E" },
       { db_key: "store_name", excel_col: "F" },
@@ -62,6 +65,7 @@ export const parsingMap: { [key: string]: any } = {
     dataStartRow: 6,
     identifier: { db_key: "rider_id", excel_col: "B" },
     dataColumns: [
+      { db_key: "date", excel_col: "A" },
       { db_key: "rider_name", excel_col: "B" },
       { db_key: "amount", excel_col: "C" }
     ]

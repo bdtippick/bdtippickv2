@@ -63,7 +63,7 @@ function columnToIndex(column: string): number {
 }
 
 // 시트 처리 함수
-async function processSheet(sheet: any, map: any, sheetName: string): Promise<any[]> {
+async function processSheet(sheet: any, map: any, sheetName: string, weekInfo: { year: number; month: number; week: number }): Promise<any[]> {
   const jsonData = XLSX.utils.sheet_to_json(sheet, { 
     header: 1, 
     defval: "", 
@@ -87,7 +87,12 @@ async function processSheet(sheet: any, map: any, sheetName: string): Promise<an
     const riderId = extractRiderId(rawCellValue);
     
     if (riderId) {
-      const rowData: any = { rider_id: riderId };
+      const rowData: any = { 
+        rider_id: riderId,
+        settlement_year: weekInfo.year,
+        settlement_month: weekInfo.month,
+        settlement_week: weekInfo.week
+      };
       
       // 모든 컬럼 추출
       for (const col of map.dataColumns) {
@@ -107,6 +112,32 @@ async function processSheet(sheet: any, map: any, sheetName: string): Promise<an
           console.log(`      💰 Amount processed: "${originalValue}" → ${processedValue}`);
         }
         
+        // 날짜 필드 처리
+        if (col.db_key === 'date' && originalValue) {
+          // Excel 날짜를 문자열로 변환
+          if (typeof originalValue === 'number') {
+            // Excel 날짜는 1900년 1월 1일부터의 일 수
+            const excelDate = new Date((originalValue - 25569) * 86400 * 1000);
+            processedValue = excelDate.toISOString().split('T')[0];
+            console.log(`      📅 Date processed: ${originalValue} → ${processedValue}`);
+          } else if (typeof originalValue === 'string') {
+            // 문자열 날짜 처리 (YYYY-MM-DD 형식으로 변환 시도)
+            try {
+              const dateObj = new Date(originalValue);
+              if (!isNaN(dateObj.getTime())) {
+                processedValue = dateObj.toISOString().split('T')[0];
+                console.log(`      📅 String date processed: "${originalValue}" → ${processedValue}`);
+              } else {
+                processedValue = originalValue;
+                console.log(`      📅 Date kept as string: ${processedValue}`);
+              }
+            } catch (e) {
+              processedValue = originalValue;
+              console.log(`      📅 Date parsing failed, kept as: ${processedValue}`);
+            }
+          }
+        }
+        
         rowData[col.db_key] = processedValue;
       }
       
@@ -123,6 +154,7 @@ async function processSheet(sheet: any, map: any, sheetName: string): Promise<an
 // 메인 Excel 파싱 및 저장 함수
 export async function parseAndSaveExcel(
   file: File, 
+  weekInfo: { year: number; month: number; week: number },
   onProgress?: ProgressCallback
 ): Promise<{ success: boolean; message: string; totalSavedRows: number; results: any }> {
   try {
@@ -170,7 +202,7 @@ export async function parseAndSaveExcel(
       }
       
       // 시트 데이터 처리
-      const processedData = await processSheet(sheet, mapConfig, mapConfig.sheetName);
+      const processedData = await processSheet(sheet, mapConfig, mapConfig.sheetName, weekInfo);
       
       // 데이터베이스에 저장
       if (processedData.length > 0) {
