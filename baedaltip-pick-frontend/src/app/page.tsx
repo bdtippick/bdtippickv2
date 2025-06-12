@@ -39,6 +39,40 @@ export default function Home() {
       // 스토리지 업로드는 임시로 비활성화 (로컬 환경에서 버킷 없음)
       console.log('📁 파일 처리 시작:', file.name);
 
+      // 파일명에서 상호명 추출
+      const extractCompanyName = (fileName: string): string | null => {
+        console.log('🔍 원본 파일명:', fileName);
+        
+        // 확장자 제거
+        const nameWithoutExt = fileName.replace(/\.[^/.]+$/, '');
+        console.log('🔍 확장자 제거 후:', nameWithoutExt);
+        
+        // 첫 번째 언더스코어까지 추출
+        const match = nameWithoutExt.match(/^([^_]+)/);
+        console.log('🔍 정규식 매치 결과:', match);
+        
+        if (match && match[1]) {
+          const companyName = match[1].trim();
+          console.log('🔍 추출된 회사명 (trim 후):', companyName);
+          console.log('🔍 회사명 길이:', companyName.length);
+          
+          // 빈 문자열이 아니고 합리적인 길이인지 확인
+          if (companyName.length > 0 && companyName.length <= 50) {
+            console.log('✅ 회사명 추출 성공:', companyName);
+            return companyName;
+          } else {
+            console.log('❌ 회사명 길이 검증 실패');
+          }
+        } else {
+          console.log('❌ 정규식 매치 실패');
+        }
+        
+        return null; // 추출 실패 시 null 반환
+      };
+
+      const companyName = extractCompanyName(file.name);
+      console.log('🏢 최종 추출된 상호명:', companyName);
+
       // 진행률 콜백 함수
       const onProgress: ProgressCallback = (current, total, currentSheet) => {
         setProgress({ current, total, currentSheet });
@@ -48,7 +82,8 @@ export default function Home() {
       const weekInfo = {
         year: selectedYear,
         month: selectedMonth,
-        week: selectedWeek
+        week: selectedWeek,
+        companyName: companyName || undefined
       };
       const result = await parseAndSaveExcel(file, weekInfo, onProgress);
 
@@ -56,11 +91,12 @@ export default function Home() {
       setAnalysisResult({
         ...result,
         fileName: file.name,
+        companyName: companyName,
         directProcessing: true
       });
 
       if (result.success) {
-        alert(`✅ 파일 처리 완료!\n\n📤 ${file.name} 파일이 성공적으로 처리되었습니다.\n💾 총 ${result.totalSavedRows}개의 데이터가 저장되었습니다.`);
+        alert(`✅ 파일 처리 완료!\n\n📤 ${file.name} 파일이 성공적으로 처리되었습니다.\n🏢 상호명: ${companyName}\n💾 총 ${result.totalSavedRows}개의 데이터가 저장되었습니다.`);
       } else {
         alert(`❌ 처리 실패!\n\n${result.message}`);
       }

@@ -218,9 +218,22 @@ export default function AdminDashboard() {
       return;
     }
 
-    setSaving(true);
-    
+    if (!confirm('현재 표시된 데이터를 라이더 정산 테이블에 저장하시겠습니까?')) {
+      return;
+    }
+
     try {
+      console.log('💾 라이더 정산 데이터 저장 시작...');
+      
+      // 파일명에서 상호명 추출 (업로드된 파일 정보에서)
+      const extractCompanyName = (): string | null => {
+        // 실제로는 업로드된 파일명 정보를 가져와야 하지만, 
+        // 현재는 기본값 사용 (추후 파일 업로드 시 저장된 정보 활용)
+        return null;
+      };
+
+      const companyName = extractCompanyName();
+      
       const settlementData = filteredData.map(item => {
         const mission = parseFloat(manualInputs[item.id]?.mission || '0') || 0;
         const preDeduction = Math.abs(parseFloat(manualInputs[item.id]?.preDeduction || '0') || 0);
@@ -228,24 +241,27 @@ export default function AdminDashboard() {
         // 최종 정산금액 계산 (수수료공제후지급액 기준)
         const finalSettlementAmount = getFullyCalculatedCommissionAmount(item, item.id);
         
-        // 원천세 계산
-        let calculatedAmount = 0;
+        // 원천세 계산 (globalAmountType에 따라)
+        let taxBaseAmount = 0;
         switch(globalAmountType) {
           case 'commission':
-            calculatedAmount = finalSettlementAmount;
+            taxBaseAmount = finalSettlementAmount;
             break;
           case 'remuneration':
-            calculatedAmount = getCalculatedAmount(item.remuneration, item.id);
+            taxBaseAmount = getCalculatedAmount(item.remuneration, item.id);
             break;
         }
-        const withholding = Math.round(calculatedAmount * 0.033);
-        const actualPayment = calculatedAmount - withholding;
+        const withholding = Math.round(taxBaseAmount * 0.033);
+        
+        // 실제 지급액 = 최종정산금액 - 원천세
+        const actualPayment = finalSettlementAmount - withholding;
 
         return {
           rider_id: item.rider_id,
           settlement_year: item.settlement_year,
           settlement_month: item.settlement_month,
           settlement_week: item.settlement_week,
+          company_name: companyName,
           
           // 기본 정산 데이터
           total_orders: item.total_orders,
@@ -297,16 +313,15 @@ export default function AdminDashboard() {
       if (error) {
         console.error('❌ 저장 실패:', error);
         alert(`저장 중 오류가 발생했습니다: ${error.message}`);
-      } else {
-        console.log('✅ 저장 성공:', data);
-        alert(`🎉 ${settlementData.length}명의 라이더 정산 데이터가 저장되었습니다!\n\n이제 라이더들이 자신의 정산 내역을 조회할 수 있습니다.`);
+        return;
       }
 
+      console.log('✅ 저장 성공:', data);
+      alert(`✅ 성공!\n\n${settlementData.length}개의 라이더 정산 데이터가 저장되었습니다.\n상호명: ${companyName}\n\n이제 라이더들이 /rider 페이지에서 본인의 정산 내역을 조회할 수 있습니다.`);
+
     } catch (error) {
-      console.error('💥 저장 프로세스 에러:', error);
-      alert(`저장 중 예상치 못한 오류가 발생했습니다: ${error}`);
-    } finally {
-      setSaving(false);
+      console.error('💥 저장 중 에러:', error);
+      alert(`저장 중 예상치 못한 오류가 발생했습니다: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
 

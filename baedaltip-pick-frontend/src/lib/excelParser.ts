@@ -63,7 +63,7 @@ function columnToIndex(column: string): number {
 }
 
 // 시트 처리 함수
-async function processSheet(sheet: any, map: any, sheetName: string, weekInfo: { year: number; month: number; week: number }): Promise<any[]> {
+async function processSheet(sheet: any, map: any, sheetName: string, weekInfo: { year: number; month: number; week: number; companyName?: string }): Promise<any[]> {
   const jsonData = XLSX.utils.sheet_to_json(sheet, { 
     header: 1, 
     defval: "", 
@@ -91,7 +91,8 @@ async function processSheet(sheet: any, map: any, sheetName: string, weekInfo: {
         rider_id: riderId,
         settlement_year: weekInfo.year,
         settlement_month: weekInfo.month,
-        settlement_week: weekInfo.week
+        settlement_week: weekInfo.week,
+        company_name: weekInfo.companyName || null
       };
       
       // 모든 컬럼 추출
@@ -154,7 +155,7 @@ async function processSheet(sheet: any, map: any, sheetName: string, weekInfo: {
 // 메인 Excel 파싱 및 저장 함수
 export async function parseAndSaveExcel(
   file: File, 
-  weekInfo: { year: number; month: number; week: number },
+  weekInfo: { year: number; month: number; week: number; companyName?: string },
   onProgress?: ProgressCallback
 ): Promise<{ success: boolean; message: string; totalSavedRows: number; results: any }> {
   try {
@@ -284,4 +285,4 @@ export async function parseAndSaveExcel(
       results: {}
     };
   }
-} 
+}

@@ -54,6 +54,13 @@ interface Deduction {
   amount: number;
 }
 
+interface WeekInfo {
+  year: number;
+  month: number;
+  week: number;
+  companyName?: string;
+}
+
 export default function RiderDashboard() {
   const [selectedWeek, setSelectedWeek] = useState<string>('');
   const [riderId, setRiderId] = useState<string>('');
@@ -62,7 +69,8 @@ export default function RiderDashboard() {
   const [additionalSupportFunds, setAdditionalSupportFunds] = useState<AdditionalSupportFund[]>([]);
   const [deductions, setDeductions] = useState<Deduction[]>([]);
   const [loading, setLoading] = useState(false);
-  const [weekOptions, setWeekOptions] = useState<Array<{value: string, label: string}>>([]);
+  const [weekOptions, setWeekOptions] = useState<Array<{value: string, label: string, companyName?: string}>>([]);
+  const [companyName, setCompanyName] = useState<string>('회사명 없음');
 
   // 주차 옵션 로드
   useEffect(() => {
@@ -71,9 +79,10 @@ export default function RiderDashboard() {
 
   const fetchWeekOptions = async () => {
     try {
+      // 라이더 정산 데이터에서 주차 옵션과 함께 상호명 정보도 가져오기
       const { data, error } = await supabase
         .from('rider_settlements')
-        .select('settlement_year, settlement_month, settlement_week')
+        .select('settlement_year, settlement_month, settlement_week, company_name')
         .order('settlement_year', { ascending: false })
         .order('settlement_month', { ascending: false })
         .order('settlement_week', { ascending: false });
@@ -88,9 +97,17 @@ export default function RiderDashboard() {
         new Set(data?.map(item => `${item.settlement_year}-${item.settlement_month}-${item.settlement_week}`))
       ).map(weekStr => {
         const [year, month, week] = weekStr.split('-');
+        // 해당 주차의 상호명 찾기
+        const weekData = data?.find(item => 
+          item.settlement_year === parseInt(year) && 
+          item.settlement_month === parseInt(month) && 
+          item.settlement_week === parseInt(week)
+        );
+        
         return {
           value: weekStr,
-          label: `${year}년 ${month}월 ${week}주차`
+          label: `${year}년 ${month}월 ${week}주차`,
+          companyName: weekData?.company_name || '회사명 없음'
         };
       });
 
@@ -99,6 +116,7 @@ export default function RiderDashboard() {
       // 첫 번째 주차를 기본 선택
       if (uniqueWeeks.length > 0) {
         setSelectedWeek(uniqueWeeks[0].value);
+        setCompanyName(uniqueWeeks[0].companyName || '회사명 없음');
       }
 
     } catch (error) {
@@ -203,14 +221,6 @@ export default function RiderDashboard() {
     return new Intl.NumberFormat('ko-KR').format(num);
   };
 
-  const getWeekPeriod = () => {
-    if (!selectedWeek) return '';
-    
-    const [year, month, week] = selectedWeek.split('-');
-    // 실제 날짜 계산은 복잡하므로 임시로 표시
-    return `${month}월 ${parseInt(week) * 7 - 6}일(수) ~ ${month}월 ${parseInt(week) * 7}일(화)`;
-  };
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* 헤더 */}
@@ -243,7 +253,11 @@ export default function RiderDashboard() {
           
           <select
             value={selectedWeek}
-            onChange={(e) => setSelectedWeek(e.target.value)}
+            onChange={(e) => {
+              setSelectedWeek(e.target.value);
+              const selectedOption = weekOptions.find(option => option.value === e.target.value);
+              setCompanyName(selectedOption?.companyName || '회사명 없음');
+            }}
             className="w-full px-4 py-3 text-gray-900 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
           >
             <option value="">주차를 선택하세요</option>
@@ -253,13 +267,6 @@ export default function RiderDashboard() {
               </option>
             ))}
           </select>
-
-          {selectedWeek && (
-            <div className="mt-4 p-3 bg-green-500 rounded-lg">
-              <p className="text-sm font-medium">정산 기간</p>
-              <p className="text-lg font-bold">{getWeekPeriod()}</p>
-            </div>
-          )}
         </div>
 
         {/* 라이더 ID 입력 섹션 */}
@@ -307,7 +314,6 @@ export default function RiderDashboard() {
 
           <div className="mt-4 text-center">
             <p className="text-sm">라이더 ID를 입력하고 조회해주세요</p>
-            <p className="text-xs mt-1">본인의 라이더스 ID를 입력하여 급여 기록을 확인하세요</p>
           </div>
         </div>
 
@@ -315,39 +321,39 @@ export default function RiderDashboard() {
         {settlementData && (
           <div className="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
             <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-              <h2 className="text-xl font-bold text-gray-900">시원컵떠니</h2>
+              <h2 className="text-xl font-bold text-gray-900">{companyName}</h2>
             </div>
 
             <div className="p-6">
               <div className="grid grid-cols-2 gap-6">
                 {/* 왼쪽 컬럼 */}
                 <div className="space-y-6">
-                  <div className="bg-blue-50 p-4 rounded-lg">
+                  <div className="bg-blue-50 p-4 rounded-lg text-center">
                     <p className="text-sm font-medium text-blue-600">성함</p>
                     <p className="text-2xl font-bold text-blue-900">{settlementData.rider_id}</p>
                   </div>
 
-                  <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="bg-gray-50 p-4 rounded-lg text-center">
                     <p className="text-sm font-medium text-gray-600">차감내역</p>
                     <p className="text-2xl font-bold text-gray-900">{formatCurrency(Math.abs(settlementData.deduction_details))} 원</p>
                   </div>
 
-                  <div className="bg-red-50 p-4 rounded-lg">
+                  <div className="bg-red-50 p-4 rounded-lg text-center">
                     <p className="text-sm font-medium text-red-600">기사부담 고용보험</p>
                     <p className="text-2xl font-bold text-red-900">-{formatCurrency(Math.abs(settlementData.employment_insurance))} 원</p>
                   </div>
 
-                  <div className="bg-yellow-50 p-4 rounded-lg">
+                  <div className="bg-yellow-50 p-4 rounded-lg text-center">
                     <p className="text-sm font-medium text-yellow-600">시간제보험</p>
                     <p className="text-2xl font-bold text-yellow-900">-{formatCurrency(Math.abs(settlementData.hourly_insurance))} 원</p>
                   </div>
 
-                  <div className="bg-yellow-50 p-4 rounded-lg">
+                  <div className="bg-yellow-50 p-4 rounded-lg text-center">
                     <p className="text-sm font-medium text-yellow-600">리스비</p>
                     <p className="text-2xl font-bold text-yellow-900">{formatCurrency(settlementData.mission_fee)} 원</p>
                   </div>
 
-                  <div className="bg-green-50 p-4 rounded-lg">
+                  <div className="bg-green-50 p-4 rounded-lg text-center">
                     <p className="text-sm font-medium text-green-600">정산금액</p>
                     <p className="text-2xl font-bold text-green-900">{formatCurrency(settlementData.final_settlement_amount)} 원</p>
                   </div>
@@ -355,32 +361,32 @@ export default function RiderDashboard() {
 
                 {/* 오른쪽 컬럼 */}
                 <div className="space-y-6">
-                  <div className="bg-blue-50 p-4 rounded-lg">
+                  <div className="bg-blue-50 p-4 rounded-lg text-center">
                     <p className="text-sm font-medium text-blue-600">총 정산 오더수</p>
                     <p className="text-2xl font-bold text-blue-900">{settlementData.total_orders}</p>
                   </div>
 
-                  <div className="bg-green-50 p-4 rounded-lg">
+                  <div className="bg-green-50 p-4 rounded-lg text-center">
                     <p className="text-sm font-medium text-green-600">총 지원금</p>
                     <p className="text-2xl font-bold text-green-900">{formatCurrency(settlementData.support_fund)} 원</p>
                   </div>
 
-                  <div className="bg-red-50 p-4 rounded-lg">
+                  <div className="bg-red-50 p-4 rounded-lg text-center">
                     <p className="text-sm font-medium text-red-600">기사부담 산재보험</p>
                     <p className="text-2xl font-bold text-red-900">-{formatCurrency(Math.abs(settlementData.industrial_accident_insurance))} 원</p>
                   </div>
 
-                  <div className="bg-purple-50 p-4 rounded-lg">
+                  <div className="bg-purple-50 p-4 rounded-lg text-center">
                     <p className="text-sm font-medium text-purple-600">보험료 소급</p>
                     <p className="text-2xl font-bold text-purple-900">{formatCurrency(settlementData.retroactive_insurance)} 원</p>
                   </div>
 
-                  <div className="bg-purple-50 p-4 rounded-lg">
+                  <div className="bg-purple-50 p-4 rounded-lg text-center">
                     <p className="text-sm font-medium text-purple-600">미션비</p>
                     <p className="text-2xl font-bold text-purple-900">{formatCurrency(settlementData.pre_deduction)} 원</p>
                   </div>
 
-                  <div className="bg-red-50 p-4 rounded-lg">
+                  <div className="bg-red-50 p-4 rounded-lg text-center">
                     <p className="text-sm font-medium text-red-600">원천세 (3.3%)</p>
                     <p className="text-2xl font-bold text-red-900">{formatCurrency(settlementData.withholding_tax)} 원</p>
                   </div>
